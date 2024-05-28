@@ -1,0 +1,9 @@
+import os
+
+MYSQL_USER = os.getenv("MYSQL_USER")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_ENDPOINT = os.getenv("MYSQL_ENDPOINT")
+MYSQL_PORT = os.getenv("MYSQL_PORT")
+DB_NAME = os.getenv("DB_NAME")
+
+MYSQL_URL = f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_ENDPOINT}:{MYSQL_PORT}/{DB_NAME}"

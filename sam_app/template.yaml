@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  data-processor
+  SAM Template for data-processor app
+
+Parameters:
+  MysqlHost:
+    Type: String
+  MysqlUser:
+    Type: String
+  MysqlPassword:
+    Type: String
+  MysqlDbName:
+    Type: String
+  MysqlPort:
+    Type: String
+    Default: 3306
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+
+Resources:
+  DataBucket:
+    Type: AWS::S3::Bucket
+    # Properties:
+  DataProcessorFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    DependsOn:
+    Properties:
+      CodeUri: data_processor/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Architectures:
+        - x86_64
+      Policies:
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+      Environment:
+        Variables:
+          MYSQL_USER: !Ref MysqlUser
+          MYSQL_PASSWORD: !Ref MysqlPassword
+          MYSQL_ENDPOINT: !Ref MysqlHost
+          MYSQL_PORT: !Ref MysqlPort
+          DB_NAME: !Ref MysqlDbName
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !Ref DataBucket
+            Events: s3:ObjectCreated:*
