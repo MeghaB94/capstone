@@ -19,7 +19,7 @@ confirm_changeset = true
 resolve_s3 = true
 stack_name = "data-processor"
 s3_prefix = "data-processor"
-region = "us-east-2"
+region = "us-west-2"
 image_repositories = []
 
 [default.package.parameters]

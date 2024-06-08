@@ -1,19 +1,88 @@
+from functools import lru_cache
 from pandas import DataFrame
 import numpy as np
 import pandas as pd
 import re
-
+from translations import Translator
 
 from dateutil import parser
 
+fix_column_translate = {
+    "Marital situation": "Marital Status",
+    "Native country": "Country of Birth",
+    "Country from where you immigrated to immigrate": "Country you have_will immigrate from",
+    "Darrive year in Canada Enter 0 if not applicable": "Year landed in Canada enter 0 if not yet landed",
+    "What is your current professional situation": "What is your current employment status",
+    "Higher level of training": "Highest level of education",
+    "In which industry or sector do you work": "What industry or sector are you working in",
+    "Is this your favorite industry or sector": "Is this your preferred industry or sector",
+    "What is your current annual salary": "What is your current annual employment salary",
+}
+
+fix_duplicate_columns = {
+    "Country of Birth": "Country of birth",
+}
+
+columns_to_be_translated = [
+    "Gender",
+    "Status in Canada",
+    "Marital Status",
+    "Country of birth",
+    "Country you have_will immigrate from",
+    "Year landed in Canada enter 0 if not yet landed",
+    "Highest level of education",
+    # "Cohort Name",
+    "What is your current employment status",
+    "What industry or sector are you working in",
+    "Is this your preferred industry or sector",
+    "What is your current annual employment salary",
+]
+
+translator_obj = Translator()
+
+
+@lru_cache
+def translate(text):
+    if not text or type(text) != str:
+        return text
+    return translator_obj.fetch_translation(text)
+
+
+def translate_french_data(df: DataFrame):
+    french_cols = {}
+    for col in df.columns.to_list():
+        translated_text = translate(col)
+        if translated_text != col:
+            french_cols.update({col: translated_text})
+    for french_col, english_col in french_cols.items():
+        new_col_name = fix_column_translate.get(english_col, english_col)
+        if new_col_name not in df:
+            df[new_col_name] = df[french_col]
+        df[new_col_name] = df[new_col_name].fillna(df[french_col])
+        df[french_col] = df[french_col].fillna(df[new_col_name])
+        df[new_col_name] = df[french_col]
+    df.drop(columns=french_cols.keys(), inplace=True)
+    for drop_col, keep_col in fix_duplicate_columns.items():
+        if keep_col not in df:
+            df[keep_col] = df[drop_col]
+        df[keep_col] = df[keep_col].fillna(df[drop_col])
+        df[drop_col] = df[drop_col].fillna(df[keep_col])
+        df[keep_col] = df[drop_col]
+    df.drop(columns=fix_duplicate_columns.keys(), inplace=True)
+    for index, row in df.iterrows():
+        for column in columns_to_be_translated:
+            if column in row:
+                df.at[index, column] = translate(df.at[index, column])
+    return df
+
 
 def clean_data(df: DataFrame, type: str):
-    df.rename(columns=lambda x: x.strip(), inplace=True)
     df = df[
         ~df["Username"].str.contains("test|proton|demo|@ascend", case=False, na=False)
     ]
     df.reset_index(drop=True, inplace=True)
-    result_df = df
+    df = translate_french_data(df)
+    df = fill_nas(df)
     if type == "signup":
         result_df = clean_signup(df)
     elif type == "exams":
@@ -23,6 +92,20 @@ def clean_data(df: DataFrame, type: str):
     elif type == "survey":
         result_df = clean_survey(df)
     return result_df
+
+
+def fill_nas(df: DataFrame):
+    for colum in df.columns.to_list():
+        if colum == "CompletionDate":
+            df[colum].fillna("0", inplace=True)
+        elif colum == "Eval Response":
+            df[colum].fillna("NA", inplace=True)
+            df[colum] = df[colum].replace(" ", np.nan).fillna("NA").replace(" ", "NA")
+        elif colum == "UserAnswer":
+            df[colum].fillna("NA", inplace=True)
+        else:
+            df[colum].fillna("Prefer not to disclose", inplace=True)
+    return df
 
 
 # Function to extract the year from various date formats
@@ -431,53 +514,53 @@ def clean_signup(df: DataFrame):
 
 
 def clean_exams(df: DataFrame):
-    df["Situation maritale"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    df["Genre"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    df["Âge"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    df["Statut au Canada"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
+    # df["Situation maritale"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
+    # df["Genre"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
+    # df["Âge"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
+    # df["Statut au Canada"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
     df["Age"] = df["Age"].fillna("Prefer not to disclose")
-    df["Pays de naissance"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # country of birth
-    df["Pays d_où vous avez immigré_immigrerez"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # immigration country
+    # df["Pays de naissance"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # country of birth
+    # df["Pays d_où vous avez immigré_immigrerez"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # immigration country
 
-    df["Plus haut niveau de formation"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # Highest education
-    df["Quelle est votre situation professionnelle actuelle"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # current employment
-    df["Dans quel secteur dactivite ou industrie travaillez_vous"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # industry
+    # df["Plus haut niveau de formation"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # Highest education
+    # df["Quelle est votre situation professionnelle actuelle"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # current employment
+    # df["Dans quel secteur dactivite ou industrie travaillez_vous"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # industry
 
-    df["Est_ce votre secteur ou industrie de prédilection"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # is this ur prefered sector
-    df["Quel est votre salaire annuel actuel"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )
-    # Applying the function to the date column
-    df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
-        "Année d_arrivée au Canada _saisir 0 si non applicable_"
-    ].apply(extract_year)
+    # df["Est_ce votre secteur ou industrie de prédilection"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # is this ur prefered sector
+    # df["Quel est votre salaire annuel actuel"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )
+    # # Applying the function to the date column
+    # df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
+    #     "Année d_arrivée au Canada _saisir 0 si non applicable_"
+    # ].apply(extract_year)
     df.loc[df["Username"] == "contact.vsophie@gmail.com", "Pays de naissance"] = (
         "France"
     )
-    df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
-        "Année d_arrivée au Canada _saisir 0 si non applicable_"
-    ].replace("  ", pd.NA)
+    # df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
+    #     "Année d_arrivée au Canada _saisir 0 si non applicable_"
+    # ].replace("  ", pd.NA)
 
     # Find the most frequent value in the column (excluding NaN)
-    most_frequent_value = df[
-        "Année d_arrivée au Canada _saisir 0 si non applicable_"
-    ].mode(dropna=True)[0]
-    # Fill NaN values with the most frequent value
-    df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
-        "Année d_arrivée au Canada _saisir 0 si non applicable_"
-    ].fillna(most_frequent_value)
+    # most_frequent_value = df[
+    #     "Année d_arrivée au Canada _saisir 0 si non applicable_"
+    # ].mode(dropna=True)[0]
+    # # Fill NaN values with the most frequent value
+    # df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
+    #     "Année d_arrivée au Canada _saisir 0 si non applicable_"
+    # ].fillna(most_frequent_value)
 
     # English cat
     df["CompletionDate"].fillna("0", inplace=True)
@@ -493,11 +576,11 @@ def clean_exams(df: DataFrame):
         df["Username"] == "wu.hao11@northeastern.edu",
         "Country you have_will immigrate from",
     ] = "China"
-    df.loc[df["Username"] == "anxu825@gmail.com", "Country of Birth"] = "China"
-    df.loc[df["Username"] == "raulcan333@gmail.com", "Country of Birth"] = "Colombia"
-    df.loc[df["Username"] == "niu.me@northeastern.edu", "Country of Birth"] = "China"
-    df.loc[df["Username"] == "danitacarrasco@hotmail.com", "Country of Birth"] = "Chile"
-    df.loc[df["Username"] == "fessehad27@gmail.com", "Country of Birth"] = "Ethiopia"
+    df.loc[df["Username"] == "anxu825@gmail.com", "Country of birth"] = "China"
+    df.loc[df["Username"] == "raulcan333@gmail.com", "Country of birth"] = "Colombia"
+    df.loc[df["Username"] == "niu.me@northeastern.edu", "Country of birth"] = "China"
+    df.loc[df["Username"] == "danitacarrasco@hotmail.com", "Country of birth"] = "Chile"
+    df.loc[df["Username"] == "fessehad27@gmail.com", "Country of birth"] = "Ethiopia"
     df.loc[
         df["Username"] == "fessehad27@gmail.com", "Country you have_will immigrate from"
     ] = "Ethiopia"
@@ -517,7 +600,6 @@ def clean_exams(df: DataFrame):
 
 
 def clean_eval(df: DataFrame):
-    df["Eval Response"].fillna("NA", inplace=True)
     df["What is your current employment status"].fillna(
         "Prefer not to disclose", inplace=True
     )
@@ -542,16 +624,13 @@ def clean_eval(df: DataFrame):
         df["Username"] == "wu.hao11@northeastern.edu",
         "Country you have_will immigrate from",
     ] = "China"
-    df["Eval Response"] = (
-        df["Eval Response"].replace(" ", np.nan).fillna("NA").replace(" ", "NA")
-    )
-    df.loc[df["Username"] == "anxu825@gmail.com", "Country of Birth"] = "China"
+    df.loc[df["Username"] == "anxu825@gmail.com", "Country of birth"] = "China"
 
-    df.loc[df["Username"] == "raulcan333@gmail.com", "Country of Birth"] = "Colombia"
+    df.loc[df["Username"] == "raulcan333@gmail.com", "Country of birth"] = "Colombia"
 
-    df.loc[df["Username"] == "niu.me@northeastern.edu", "Country of Birth"] = "China"
+    df.loc[df["Username"] == "niu.me@northeastern.edu", "Country of birth"] = "China"
 
-    df.loc[df["Username"] == "danitacarrasco@hotmail.com", "Country of Birth"] = "Chile"
+    df.loc[df["Username"] == "danitacarrasco@hotmail.com", "Country of birth"] = "Chile"
     df["Age"] = df["Age"].fillna("Prefer not to disclose")
     return df
 
@@ -560,36 +639,35 @@ def clean_survey(df: DataFrame):
     df = df.drop_duplicates()
     df.reset_index(drop=True, inplace=True)
     df.drop(4446, inplace=True)  # Entry mistake
-    df["UserAnswer"].fillna("NA", inplace=True)
-    df["Situation maritale"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    df["Statut au Canada"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    df["Genre"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
+    # df["Situation maritale"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
+    # df["Statut au Canada"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
+    # df["Genre"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
     df["Age"] = df["Age"].fillna("Prefer not to disclose")
-    df["Âge"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    df["Pays de naissance"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # country of birth
-    df["Pays d_où vous avez immigré_immigrerez"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # immigration country
-    df["Plus haut niveau de formation"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # Highest education
-    df["Quelle est votre situation professionnelle actuelle"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # current employment
-    df["Dans quel secteur dactivite ou industrie travaillez_vous"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # industry
-    df["Est_ce votre secteur ou industrie de prédilection"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # is this ur prefered sector
-    df["Quel est votre salaire annuel actuel"].fillna(
-        "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    )  # annual sal
+    # df["Âge"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
+    # df["Pays de naissance"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # country of birth
+    # df["Pays d_où vous avez immigré_immigrerez"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # immigration country
+    # df["Plus haut niveau de formation"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # Highest education
+    # df["Quelle est votre situation professionnelle actuelle"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # current employment
+    # df["Dans quel secteur dactivite ou industrie travaillez_vous"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # industry
+    # df["Est_ce votre secteur ou industrie de prédilection"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # is this ur prefered sector
+    # df["Quel est votre salaire annuel actuel"].fillna(
+    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
+    # )  # annual sal
 
-    # Applying the function to the date column
-    df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
-        "Année d_arrivée au Canada _saisir 0 si non applicable_"
-    ].apply(extract_year)
+    # # Applying the function to the date column
+    # df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
+    #     "Année d_arrivée au Canada _saisir 0 si non applicable_"
+    # ].apply(extract_year)
     return df

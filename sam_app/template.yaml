@@ -5,14 +5,14 @@ Description: >
   SAM Template for data-processor app
 
 Parameters:
-  MysqlHost:
-    Type: String
   MysqlUser:
     Type: String
+    Default: ascend
   MysqlPassword:
     Type: String
   MysqlDbName:
     Type: String
+    Default: ascend_data
   MysqlPort:
     Type: String
     Default: 3306
@@ -27,13 +27,34 @@ Resources:
   DataBucket:
     Type: AWS::S3::Bucket
     # Properties:
+  DataBase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: 20
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: db.t3.micro
+      DBName: !Ref MysqlDbName
+      Engine: mysql
+      # EngineVersion: 8.0.36
+      Port: !Ref MysqlPort
+      MasterUsername: !Ref MysqlUser
+      MasterUserPassword: !Ref MysqlPassword
+      MaxAllocatedStorage: 30
+      MultiAZ: false
+      PubliclyAccessible: false
+      # StorageType: gp2
+      # Tags:
+      #   - Tag
+      VPCSecurityGroups:
+        - sg-03bbbc0242f0af41b
+
   DataProcessorFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     DependsOn:
     Properties:
       CodeUri: data_processor/
       Handler: app.lambda_handler
-      Runtime: python3.11
+      Runtime: python3.12
       Architectures:
         - x86_64
       Policies:
@@ -42,9 +63,10 @@ Resources:
         Variables:
           MYSQL_USER: !Ref MysqlUser
           MYSQL_PASSWORD: !Ref MysqlPassword
-          MYSQL_ENDPOINT: !Ref MysqlHost
+          MYSQL_ENDPOINT: !GetAtt DataBase.Endpoint.Address
           MYSQL_PORT: !Ref MysqlPort
           DB_NAME: !Ref MysqlDbName
+          ANSI_ENCODING: "cp1252"
       Events:
         S3Event:
           Type: S3
