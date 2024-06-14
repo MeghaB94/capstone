@@ -161,7 +161,7 @@ Resources:
   DBFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: handlers.cleanup_data
+      Handler: handlers.put_data_in_db
       Role: !GetAtt CommonLambdaRole.Arn
       VpcConfig:
         SubnetIds:

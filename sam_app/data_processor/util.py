@@ -10,7 +10,7 @@ DATA_TYPE = ["signup", "exams", "eval", "survey"]
 
 
 def put_df_in_s3(df: DataFrame, object_key: str):
-    csv_buffer = StringIO(df.to_csv())
+    csv_buffer = StringIO(df.to_csv(index=False))
     s3_resource.Object(DATA_BUCKET, object_key).put(Body=csv_buffer.getvalue())
     return object_key
 
