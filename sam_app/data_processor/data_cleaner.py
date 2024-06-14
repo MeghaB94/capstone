@@ -3,85 +3,11 @@ from pandas import DataFrame
 import numpy as np
 import pandas as pd
 import re
-from translations import Translator
 
 from dateutil import parser
 
-fix_column_translate = {
-    "Marital situation": "Marital Status",
-    "Native country": "Country of Birth",
-    "Country from where you immigrated to immigrate": "Country you have_will immigrate from",
-    "Darrive year in Canada Enter 0 if not applicable": "Year landed in Canada enter 0 if not yet landed",
-    "What is your current professional situation": "What is your current employment status",
-    "Higher level of training": "Highest level of education",
-    "In which industry or sector do you work": "What industry or sector are you working in",
-    "Is this your favorite industry or sector": "Is this your preferred industry or sector",
-    "What is your current annual salary": "What is your current annual employment salary",
-}
-
-fix_duplicate_columns = {
-    "Country of Birth": "Country of birth",
-}
-
-columns_to_be_translated = [
-    "Gender",
-    "Status in Canada",
-    "Marital Status",
-    "Country of birth",
-    "Country you have_will immigrate from",
-    "Year landed in Canada enter 0 if not yet landed",
-    "Highest level of education",
-    # "Cohort Name",
-    "What is your current employment status",
-    "What industry or sector are you working in",
-    "Is this your preferred industry or sector",
-    "What is your current annual employment salary",
-]
-
-translator_obj = Translator()
-
-
-@lru_cache
-def translate(text):
-    if not text or type(text) != str:
-        return text
-    return translator_obj.fetch_translation(text)
-
-
-def translate_french_data(df: DataFrame):
-    french_cols = {}
-    for col in df.columns.to_list():
-        translated_text = translate(col)
-        if translated_text != col:
-            french_cols.update({col: translated_text})
-    for french_col, english_col in french_cols.items():
-        new_col_name = fix_column_translate.get(english_col, english_col)
-        if new_col_name not in df:
-            df[new_col_name] = df[french_col]
-        df[new_col_name] = df[new_col_name].fillna(df[french_col])
-        df[french_col] = df[french_col].fillna(df[new_col_name])
-        df[new_col_name] = df[french_col]
-    df.drop(columns=french_cols.keys(), inplace=True)
-    for drop_col, keep_col in fix_duplicate_columns.items():
-        if keep_col not in df:
-            df[keep_col] = df[drop_col]
-        df[keep_col] = df[keep_col].fillna(df[drop_col])
-        df[drop_col] = df[drop_col].fillna(df[keep_col])
-        df[keep_col] = df[drop_col]
-    df.drop(columns=fix_duplicate_columns.keys(), inplace=True)
-    for index, row in df.iterrows():
-        for column in columns_to_be_translated:
-            if column in row:
-                df.at[index, column] = translate(df.at[index, column])
-    return df
-
 
 def clean_data(df: DataFrame, type: str):
-    df = df[
-        ~df["Username"].str.contains("test|proton|demo|@ascend", case=False, na=False)
-    ]
-    df.reset_index(drop=True, inplace=True)
-    df = translate_french_data(df)
     df = fill_nas(df)
     if type == "signup":
         result_df = clean_signup(df)

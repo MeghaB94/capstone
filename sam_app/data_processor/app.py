@@ -1,13 +1,6 @@
-from io import StringIO
-from typing import Optional
-import boto3
-import pandas as pd
-from db import mysql_engine
+from db import save_df_to_sql
 from data_cleaner import clean_data
 from util import get_csv_file_from_s3
-
-s3_resource = boto3.resource("s3")
-DATA_TYPE = ["signup", "exams", "eval", "survey"]
 
 
 def lambda_handler(event, context):
@@ -20,11 +13,4 @@ def lambda_handler(event, context):
         )
         if df is not None:
             df = clean_data(df=df, type=data_type)
-            df.to_sql(name=data_type, con=mysql_engine, if_exists="append")
-
-
-def get_data_type_from_file_name(file_path: str) -> Optional[str]:
-    for data_type in DATA_TYPE:
-        if data_type in file_path.lower():
-            return data_type
-    return None
+            save_df_to_sql(data_type, df)

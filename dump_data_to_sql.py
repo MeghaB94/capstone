@@ -1,3 +1,6 @@
+from datetime import datetime
+from io import StringIO
+import boto3
 import os
 import pandas as pd
 from sam_app.data_processor.data_cleaner import clean_data
@@ -10,7 +13,9 @@ load_dotenv()
 directory = "ASCEND Dataset"
 keywords = ["signup", "exams", "eval", "survey"]
 
-BUCKET = "data-processor-databucket-xsxgjcwmwdxa"
+DATA_BUCKET = os.getenv("DATA_BUCKET")
+s3_resource = boto3.resource("s3")
+
 keys = [
     "ASCEND Dataset/ASCEND Data Jan - Mar 2024/IECBC-SDE-User Signup Report20240401070006658Immigrant Employment Council of BC (IECBC)_8a2f7fa4-7920-4802-aafe-334c465610d1.csv",
     "ASCEND Dataset/ASCEND Data Jan - Mar 2024/IECBC-Assessments Report Exams Only -20240401070410195.csv",
@@ -48,7 +53,7 @@ def read_files_from_s3():
     excel_data = {keyword: pd.DataFrame() for keyword in keywords}
     for key in keys:
         data_type, csv_data = get_csv_file_from_s3(
-            bucket=BUCKET,
+            bucket=DATA_BUCKET,
             key=key,
         )
         if csv_data is not None:
@@ -73,4 +78,20 @@ def save_to_sql():
         print(result)
 
 
-save_to_sql()
+def put_df_in_s3(df: pd.DataFrame, data_type: str):
+    csv_buffer = StringIO(df.to_csv())
+    s3_resource.Object(DATA_BUCKET, f"{data_type}/{datetime.now()}.csv").put(
+        Body=csv_buffer.getvalue()
+    )
+
+
+def test_code():
+    dataframes = read_files_to_separate_dataframes(directory, keywords)
+    for keyword, df in dataframes.items():
+        if type(df) == pd.DataFrame:
+            put_df_in_s3(df, keyword)
+
+
+# save_to_sql()
+
+test_code()
