@@ -177,7 +177,7 @@ Resources:
           MYSQL_PASSWORD: !Ref MysqlPassword
           MYSQL_ENDPOINT: !GetAtt DataBase.Endpoint.Address
           MYSQL_PORT: !Ref MysqlPort
-          DB_NAME: !Ref MysqlDbName
+          DB_NAME: "megha_test"
 
   DataProcessorStepFunction:
     Type: AWS::Serverless::StateMachine
