@@ -37,7 +37,7 @@ def get_csv_file_from_s3(
         encoding = ANSI_ENCODING if data_type == "signup" else "utf-8"
         print(f"update encoding {encoding}")
         df = get_df_from_s3(key, bucket, encoding)
-        # remove trailing spaces from columns
+        # remove trailing spaces
         df.rename(columns=lambda x: x.strip(), inplace=True)
         df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
         return data_type, df
