@@ -6,6 +6,11 @@ from pandas import DataFrame, concat, read_csv
 from functools import lru_cache
 import time
 from googletrans import Translator as GoogleTranslator
+from translation_config import (
+    fix_column_translate,
+    fix_duplicate_columns,
+    columns_to_be_translated,
+)
 
 translator = GoogleTranslator()
 translator.raise_Exception = True
@@ -83,6 +88,17 @@ class Translator:
         return self.fetch_translation(input)
 
 
+def _copy_values_between_cols(df: DataFrame, drop_col: str, keep_col: str):
+    if drop_col not in df:
+        return False
+    if keep_col not in df:
+        df[keep_col] = df[drop_col]
+    df[keep_col] = df[keep_col].fillna(df[drop_col])
+    df[drop_col] = df[drop_col].fillna(df[keep_col])
+    df[keep_col] = df[drop_col]
+    return True
+
+
 def translate_columns(df: DataFrame):
     translator_obj = Translator()
     french_cols = {}
@@ -90,21 +106,16 @@ def translate_columns(df: DataFrame):
         translated_text = translator_obj.fetch_translation(col)
         if translated_text != col:
             french_cols.update({col: translated_text})
+    columns_to_drop = []
     for french_col, english_col in french_cols.items():
         new_col_name = fix_column_translate.get(english_col, english_col)
-        if new_col_name not in df:
-            df[new_col_name] = df[french_col]
-        df[new_col_name] = df[new_col_name].fillna(df[french_col])
-        df[french_col] = df[french_col].fillna(df[new_col_name])
-        df[new_col_name] = df[french_col]
-    df.drop(columns=french_cols.keys(), inplace=True)
+        if _copy_values_between_cols(df, drop_col=french_col, keep_col=new_col_name):
+            columns_to_drop.append(french_col)
     for drop_col, keep_col in fix_duplicate_columns.items():
-        if keep_col not in df:
-            df[keep_col] = df[drop_col]
-        df[keep_col] = df[keep_col].fillna(df[drop_col])
-        df[drop_col] = df[drop_col].fillna(df[keep_col])
-        df[keep_col] = df[drop_col]
-    df.drop(columns=fix_duplicate_columns.keys(), inplace=True)
+        if _copy_values_between_cols(df, drop_col=drop_col, keep_col=keep_col):
+            columns_to_drop.append(drop_col)
+    new_columns = [col for col in df.columns if col not in columns_to_drop]
+    df = df[new_columns]
     return df
 
 
@@ -117,35 +128,3 @@ def translate_rows(df: DataFrame):
                     df.at[index, column]
                 )
     return df
-
-
-fix_column_translate = {
-    "Marital situation": "Marital Status",
-    "Native country": "Country of Birth",
-    "Country from where you immigrated to immigrate": "Country you have_will immigrate from",
-    "Darrive year in Canada Enter 0 if not applicable": "Year landed in Canada enter 0 if not yet landed",
-    "What is your current professional situation": "What is your current employment status",
-    "Higher level of training": "Highest level of education",
-    "In which industry or sector do you work": "What industry or sector are you working in",
-    "Is this your favorite industry or sector": "Is this your preferred industry or sector",
-    "What is your current annual salary": "What is your current annual employment salary",
-}
-
-fix_duplicate_columns = {
-    "Country of Birth": "Country of birth",
-}
-
-columns_to_be_translated = [
-    "Gender",
-    "Status in Canada",
-    "Marital Status",
-    "Country of birth",
-    "Country you have_will immigrate from",
-    "Year landed in Canada enter 0 if not yet landed",
-    "Highest level of education",
-    # "Cohort Name",
-    "What is your current employment status",
-    "What industry or sector are you working in",
-    "Is this your preferred industry or sector",
-    "What is your current annual employment salary",
-]
