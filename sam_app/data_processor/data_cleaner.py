@@ -1,7 +1,4 @@
-from functools import lru_cache
-from pandas import DataFrame
-import numpy as np
-import pandas as pd
+from pandas import DataFrame, isna
 import re
 
 from dateutil import parser
@@ -9,6 +6,18 @@ from dateutil import parser
 
 def clean_data(df: DataFrame, type: str):
     df = fill_nas(df)
+    # Apply the function to identify date-like entries
+    is_date = df["Country of birth"].apply(looks_like_date)
+
+    # Replace date-like entries with the corresponding values from "Country you have_will immigrate from"
+    df.loc[is_date, "Country of birth"] = df.loc[
+        is_date, "Country you have_will immigrate from"
+    ]
+    df["Year landed in Canada enter 0 if not yet landed"] = df[
+        "Year landed in Canada enter 0 if not yet landed"
+    ].apply(extract_year)
+    df = df.drop_duplicates()
+    df.reset_index(drop=True, inplace=True)
     if type == "signup":
         result_df = clean_signup(df)
     elif type == "exams":
@@ -23,20 +32,17 @@ def clean_data(df: DataFrame, type: str):
 def fill_nas(df: DataFrame):
     for colum in df.columns.to_list():
         if colum == "CompletionDate":
-            df[colum].fillna("0", inplace=True)
-        elif colum == "Eval Response":
-            df[colum].fillna("NA", inplace=True)
-            df[colum] = df[colum].replace(" ", np.nan).fillna("NA").replace(" ", "NA")
-        elif colum == "UserAnswer":
-            df[colum].fillna("NA", inplace=True)
+            df.fillna({colum: "0"}, inplace=True)
+        elif colum in ["Eval Response", "UserAnswer"]:
+            df.fillna({colum: "NA"}, inplace=True)
         else:
-            df[colum].fillna("Prefer not to disclose", inplace=True)
+            df.fillna({colum: "Prefer not to disclose"}, inplace=True)
     return df
 
 
 # Function to extract the year from various date formats
 def extract_year(date_str):
-    if pd.isna(date_str):
+    if isna(date_str):
         return None  # Handle NaN values
     elif str(date_str).strip() == "0":  # Explicitly check for '0' as a string
         return "0"  # Return '0' as a string to keep the format consistent
@@ -44,24 +50,6 @@ def extract_year(date_str):
     try:
         # Convert to string to handle any non-string types
         date_str = str(date_str)
-        # Mapping for French month names to English
-        french_to_english = {
-            "Janvier": "January",
-            "Février": "February",
-            "Mars": "March",
-            "Avril": "April",
-            "Mai": "May",
-            "Juin": "June",
-            "Juillet": "July",
-            "Août": "August",
-            "Septembre": "September",
-            "Octobre": "October",
-            "Novembre": "November",
-            "Décembre": "December",
-        }
-        # Replace French month names if present
-        for fr, en in french_to_english.items():
-            date_str = date_str.replace(fr, en)
         # Parse the date and extract the year
         return str(parser.parse(date_str).year)
     except ValueError:
@@ -83,13 +71,6 @@ def looks_like_date(value):
 
 
 def clean_signup(df: DataFrame):
-    # Apply the function to identify date-like entries
-    is_date = df["Country of birth"].apply(looks_like_date)
-
-    # Replace date-like entries with the corresponding values from "Country you have_will immigrate from"
-    df.loc[is_date, "Country of birth"] = df.loc[
-        is_date, "Country you have_will immigrate from"
-    ]
 
     # Update the 'Country of birth' and 'Country you have_will immigrate from' columns
     df.loc[
@@ -128,17 +109,6 @@ def clean_signup(df: DataFrame):
         df["Username"] == "howladerony@gmail.com",
         ["Country of birth", "Country you have_will immigrate from"],
     ] = "Bangladesh"
-
-    #     usernames_to_display = [
-    #     'fessehad27@gmail.com',
-    #     'hong008sec@hotmail.com',
-    #     'chudasama.h@northeastern.edu',
-    #     'howladerony@gmail.com',
-    #     'liujun02122023@163.com'
-    # ]
-
-    # Filter the DataFrame to show only the specified usernames
-    # filtered_df = df[df['Username'].isin(usernames_to_display)]
 
     usernames_to_update = [
         "feng.chenc@northeastern.edu",
@@ -434,62 +404,10 @@ def clean_signup(df: DataFrame):
     df["What is your current annual employment salary"] = df[
         "What is your current annual employment salary"
     ].replace("3) $25,000 Â– $50,000", "3) $25,000 – $50,000")
-    df["Organization"] = df["Organization"].fillna("Prefer not to disclose")
-    df["Age"] = df["Age"].fillna("Prefer not to disclose")
     return df
 
 
 def clean_exams(df: DataFrame):
-    # df["Situation maritale"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    # df["Genre"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    # df["Âge"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    # df["Statut au Canada"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    df["Age"] = df["Age"].fillna("Prefer not to disclose")
-    # df["Pays de naissance"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # country of birth
-    # df["Pays d_où vous avez immigré_immigrerez"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # immigration country
-
-    # df["Plus haut niveau de formation"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # Highest education
-    # df["Quelle est votre situation professionnelle actuelle"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # current employment
-    # df["Dans quel secteur dactivite ou industrie travaillez_vous"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # industry
-
-    # df["Est_ce votre secteur ou industrie de prédilection"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # is this ur prefered sector
-    # df["Quel est votre salaire annuel actuel"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )
-    # # Applying the function to the date column
-    # df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
-    #     "Année d_arrivée au Canada _saisir 0 si non applicable_"
-    # ].apply(extract_year)
-    df.loc[df["Username"] == "contact.vsophie@gmail.com", "Pays de naissance"] = (
-        "France"
-    )
-    # df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
-    #     "Année d_arrivée au Canada _saisir 0 si non applicable_"
-    # ].replace("  ", pd.NA)
-
-    # Find the most frequent value in the column (excluding NaN)
-    # most_frequent_value = df[
-    #     "Année d_arrivée au Canada _saisir 0 si non applicable_"
-    # ].mode(dropna=True)[0]
-    # # Fill NaN values with the most frequent value
-    # df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
-    #     "Année d_arrivée au Canada _saisir 0 si non applicable_"
-    # ].fillna(most_frequent_value)
-
-    # English cat
-    df["CompletionDate"].fillna("0", inplace=True)
     df.loc[
         df["Username"] == "pink_gricel95@hotmail.com",
         "Country you have_will immigrate from",
@@ -510,34 +428,10 @@ def clean_exams(df: DataFrame):
     df.loc[
         df["Username"] == "fessehad27@gmail.com", "Country you have_will immigrate from"
     ] = "Ethiopia"
-    df["What is your current employment status"].fillna(
-        "Prefer not to disclose", inplace=True
-    )
-    df["What industry or sector are you working in"].fillna(
-        "Prefer not to disclose", inplace=True
-    )
-    df["What is your current annual employment salary"].fillna(
-        "Prefer not to disclose", inplace=True
-    )
-    df["Is this your preferred industry or sector"].fillna(
-        "Prefer not to disclose", inplace=True
-    )
     return df
 
 
 def clean_eval(df: DataFrame):
-    df["What is your current employment status"].fillna(
-        "Prefer not to disclose", inplace=True
-    )
-    df["What industry or sector are you working in"].fillna(
-        "Prefer not to disclose", inplace=True
-    )
-    df["What is your current annual employment salary"].fillna(
-        "Prefer not to disclose", inplace=True
-    )
-    df["Is this your preferred industry or sector"].fillna(
-        "Prefer not to disclose", inplace=True
-    )
     df.loc[
         df["Username"] == "pink_gricel95@hotmail.com",
         "Country you have_will immigrate from",
@@ -557,43 +451,9 @@ def clean_eval(df: DataFrame):
     df.loc[df["Username"] == "niu.me@northeastern.edu", "Country of birth"] = "China"
 
     df.loc[df["Username"] == "danitacarrasco@hotmail.com", "Country of birth"] = "Chile"
-    df["Age"] = df["Age"].fillna("Prefer not to disclose")
     return df
 
 
 def clean_survey(df: DataFrame):
-    df = df.drop_duplicates()
-    df.reset_index(drop=True, inplace=True)
     df.drop(4446, inplace=True)  # Entry mistake
-    # df["Situation maritale"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    # df["Statut au Canada"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    # df["Genre"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    df["Age"] = df["Age"].fillna("Prefer not to disclose")
-    # df["Âge"].fillna("PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True)
-    # df["Pays de naissance"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # country of birth
-    # df["Pays d_où vous avez immigré_immigrerez"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # immigration country
-    # df["Plus haut niveau de formation"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # Highest education
-    # df["Quelle est votre situation professionnelle actuelle"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # current employment
-    # df["Dans quel secteur dactivite ou industrie travaillez_vous"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # industry
-    # df["Est_ce votre secteur ou industrie de prédilection"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # is this ur prefered sector
-    # df["Quel est votre salaire annuel actuel"].fillna(
-    #     "PrÃ©fÃ¨re ne pas rÃ©pondre", inplace=True
-    # )  # annual sal
-
-    # # Applying the function to the date column
-    # df["Année d_arrivée au Canada _saisir 0 si non applicable_"] = df[
-    #     "Année d_arrivée au Canada _saisir 0 si non applicable_"
-    # ].apply(extract_year)
     return df

@@ -25,12 +25,13 @@ def read_files_to_separate_dataframes(directory, keywords):
                     try:
                         csv_data = pd.read_csv(
                             file_path,
+                            dtype=str,
                             encoding=(
                                 ANSI_ENCODING if "signup" in file.lower() else "utf-8"
                             ),
                         )
                         csv_data.rename(columns=lambda x: x.strip(), inplace=True)
-                        csv_data.apply(
+                        csv_data = csv_data.apply(
                             lambda x: x.str.strip() if x.dtype == "object" else x
                         )
                         excel_data[keyword] = pd.concat(
@@ -52,12 +53,21 @@ def save_to_sql():
                     "test|proton|demo|@ascend", case=False, na=False
                 )
             ]
+            df = df[
+                ~df["Program Version"].str.contains("Facilitator", case=False, na=False)
+            ]
+            if "DepartmentName" in df:
+                df = df[
+                    ~df["DepartmentName"].str.contains(
+                        "Facilitator", case=False, na=False
+                    )
+                ]
             df.reset_index(drop=True, inplace=True)
             df = translate_columns(df)
             df = translate_rows(df)
-            dataframes[keyword] = clean_data(df, keyword)
-
-    print("data cleaned and ready to write to database")
-    for table_name, df in dataframes.items():
-        result = df.to_sql(name=table_name, con=mysql_engine, if_exists="replace")
-        print(result)
+            dataframes[keyword] = df = clean_data(df, keyword)
+            print(f"data cleaned and ready to write to database for {keyword}")
+            result = df.to_sql(
+                name=keyword, con=mysql_engine, index=False, if_exists="replace"
+            )
+            print(result)
