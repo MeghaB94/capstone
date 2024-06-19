@@ -39,6 +39,7 @@ def get_csv_file_from_s3(
         df = get_df_from_s3(key, bucket, encoding)
         # remove trailing spaces from columns
         df.rename(columns=lambda x: x.strip(), inplace=True)
+        df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
         return data_type, df
     return None, None
 

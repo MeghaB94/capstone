@@ -16,7 +16,7 @@ TRANSLATION_CSV_KEY = "translations.csv"
 
 @lru_cache
 def translate(text):
-    if not text or type(text) != str:
+    if not text or type(text) != str or not text.strip():
         return text
     try:
         translation = translator.translate(text, dest="en")
@@ -48,7 +48,7 @@ class Translator:
         self._get_df_from_csv()
 
     def _save_df_to_csv(self):
-        csv_buffer = StringIO(self.df.to_csv())
+        csv_buffer = StringIO(self.df.to_csv(index=False))
         s3_resource.Object(DATA_BUCKET, TRANSLATION_CSV_KEY).put(
             Body=csv_buffer.getvalue()
         )
