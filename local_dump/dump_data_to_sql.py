@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+translated_directory = "translated_data"
 directory = "ASCEND Dataset"
 keywords = ["signup", "exams", "eval", "survey"]
 
@@ -65,6 +66,7 @@ def save_to_sql():
             df.reset_index(drop=True, inplace=True)
             df = translate_columns(df)
             df = translate_rows(df)
+            df.to_csv(f"{translated_directory}/{keyword}.csv", index=False)
             dataframes[keyword] = df = clean_data(df, keyword)
             print(f"data cleaned and ready to write to database for {keyword}")
             result = df.to_sql(

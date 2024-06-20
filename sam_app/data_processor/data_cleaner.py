@@ -6,17 +6,11 @@ from dateutil import parser
 
 def clean_data(df: DataFrame, type: str):
     df = fill_nas(df)
-    # Apply the function to identify date-like entries
-    is_date = df["Country of birth"].apply(looks_like_date)
-
-    # Replace date-like entries with the corresponding values from "Country you have_will immigrate from"
-    df.loc[is_date, "Country of birth"] = df.loc[
-        is_date, "Country you have_will immigrate from"
-    ]
     df["Year landed in Canada enter 0 if not yet landed"] = df[
         "Year landed in Canada enter 0 if not yet landed"
     ].apply(extract_year)
     df = df.drop_duplicates()
+    df = fix_country_columns(df)
     df.reset_index(drop=True, inplace=True)
     if type == "signup":
         result_df = clean_signup(df)
@@ -66,12 +60,45 @@ def looks_like_date(value):
         r"\d{4}/[A-Za-z]{4,9} \d{1,2}",  # e.g., 1967/september 24
         r"\d{1,2}/\d{1,2}/\d{4}",  # e.g., 9/9/1990
         r"[A-Za-z]{3,9}-\d{1,2}-\d{4}",  # e.g., june-03-1991
+        r"\d{4}\.\d{1,2}\.\d{1,2}",  # e.g., 1991.03.02 or 1991.3.2
     ]
     return any(re.match(pattern, str(value)) for pattern in date_patterns)
 
 
-def clean_signup(df: DataFrame):
+def fix_country_columns(df: DataFrame):
+    # Optionally, normalize the text to handle any special characters
+    df["Country you have_will immigrate from"] = (
+        df["Country you have_will immigrate from"]
+        .str.normalize("NFKD")
+        .str.encode("ascii", errors="ignore")
+        .str.decode("utf-8")
+    )
+    df["Country of birth"] = (
+        df["Country of birth"]
+        .str.normalize("NFKD")
+        .str.encode("ascii", errors="ignore")
+        .str.decode("utf-8")
+    )
+    # Apply the function to identify date-like entries
+    condition = df["Country of birth"].apply(looks_like_date)
 
+    # Replace date-like entries with the corresponding values from "Country you have_will immigrate from"
+    df.loc[condition, "Country of birth"] = df.loc[
+        condition, "Country you have_will immigrate from"
+    ]
+    condition = (
+        df["Country you have_will immigrate from"] == "Prefer not to disclose"
+    ) & (df["Country of birth"] != "Prefer not to disclose")
+
+    df.loc[condition, "Country you have_will immigrate from"] = df.loc[
+        condition, "Country of birth"
+    ]
+    condition = (df["Country of birth"] == "Prefer not to disclose") & (
+        df["Country you have_will immigrate from"] != "Prefer not to disclose"
+    )
+    df.loc[condition, "Country of birth"] = df.loc[
+        condition, "Country you have_will immigrate from"
+    ]
     # Update the 'Country of birth' and 'Country you have_will immigrate from' columns
     df.loc[
         df["Username"] == "fessehad27@gmail.com",
@@ -110,36 +137,14 @@ def clean_signup(df: DataFrame):
         ["Country of birth", "Country you have_will immigrate from"],
     ] = "Bangladesh"
 
-    usernames_to_update = [
-        "feng.chenc@northeastern.edu",
-        "pink_gricel95@hotmail.com",
-        "wu.hao11@northeastern.edu",
-        "zeng.zhix@northeastern.edu",
-        "obaidamourad357@gmail.com",
-    ]
-
-    # Update the 'Country you have_will immigrate from' to match 'Country of birth' for the specified usernames
-    df.loc[
-        df["Username"].isin(usernames_to_update), "Country you have_will immigrate from"
-    ] = df.loc[df["Username"].isin(usernames_to_update), "Country of birth"]
-
-    df["Country you have_will immigrate from"] = df[
-        "Country you have_will immigrate from"
-    ].replace("Brasil", "Brazil")
-
-    # Update 'Country of birth' column from 'Brasil' to 'Brazil'
-    df["Country of birth"] = df["Country of birth"].replace("Brasil", "Brazil")
-
     # List of variations to be replaced with 'China'
     variations_to_replace = [
         "china",
         "CN",
-        "China, PeopleÂ’s Republic of",
-        "Chinia",
+        # "China, PeopleÂ’s Republic of",
+        # "Chinia",
         "Hong Kong",
         "Hong Kong, China",
-        "China, PeopleÂ’s Republic of ",
-        "China, PeopleÂ’s Republic of",
     ]
 
     # Update 'Country you have_will immigrate from' column
@@ -152,37 +157,14 @@ def clean_signup(df: DataFrame):
         variations_to_replace, "China"
     )
 
-    # Correct the replacement of 'PerÃº' to 'Peru' considering special characters
-    df["Country you have_will immigrate from"] = df[
-        "Country you have_will immigrate from"
-    ].str.replace("China, PeopleÂ’s Republic of ", "China", regex=False)
-    df["Country of birth"] = df["Country of birth"].str.replace(
-        "China, PeopleÂ’s Republic of ", "China", regex=False
-    )
-
-    # Optionally, normalize the text to handle any special characters
-    df["Country you have_will immigrate from"] = (
-        df["Country you have_will immigrate from"]
-        .str.normalize("NFKD")
-        .str.encode("ascii", errors="ignore")
-        .str.decode("utf-8")
-    )
-    df["Country of birth"] = (
-        df["Country of birth"]
-        .str.normalize("NFKD")
-        .str.encode("ascii", errors="ignore")
-        .str.decode("utf-8")
-    )
-
     # Update 'Country you have_will immigrate from' column from 'Brasil' to 'Brazil'
     df["Country you have_will immigrate from"] = df[
         "Country you have_will immigrate from"
     ].replace("Euthiopia", "Ethiopia")
 
-    # Update 'Country of birth' column from 'Brasil' to 'Brazil'
     df["Country of birth"] = df["Country of birth"].replace("Euthiopia", "Ethiopia")
 
-    df["Country of birth"] = df["Country of birth"].replace("Hyderabad ", "India")
+    df["Country of birth"] = df["Country of birth"].replace("Hyderabad", "India")
     korea_variations = [
         "Korea",
         "South Korea",
@@ -200,69 +182,13 @@ def clean_signup(df: DataFrame):
     df["Country of birth"] = df["Country of birth"].replace(
         korea_variations, "South Korea"
     )
-    df["Country you have_will immigrate from"] = df[
-        "Country you have_will immigrate from"
-    ].replace("MÃ©xico", "Mexico")
-
-    # Update 'Country of birth' column from 'Brasil' to 'Brazil'
-    df["Country of birth"] = df["Country of birth"].replace("MÃ©xico", "Mexico")
-    df["Country you have_will immigrate from"] = df[
-        "Country you have_will immigrate from"
-    ].str.replace("MÃ©xico", "Mexico", regex=False)
-    df["Country of birth"] = df["Country of birth"].str.replace(
-        "MÃ©xico", "Mexico", regex=False
-    )
-
-    # Optionally, normalize the text to handle any special characters
-    df["Country you have_will immigrate from"] = (
-        df["Country you have_will immigrate from"]
-        .str.normalize("NFKD")
-        .str.encode("ascii", errors="ignore")
-        .str.decode("utf-8")
-    )
-    df["Country of birth"] = (
-        df["Country of birth"]
-        .str.normalize("NFKD")
-        .str.encode("ascii", errors="ignore")
-        .str.decode("utf-8")
-    )
-
-    df["Country you have_will immigrate from"] = df[
-        "Country you have_will immigrate from"
-    ].replace("PerÃº", "Peru")
-
-    df["Country of birth"] = df["Country of birth"].replace("PerÃº", "Peru")
-
-    df["Country you have_will immigrate from"] = df[
-        "Country you have_will immigrate from"
-    ].str.replace("PerÃº", "Peru", regex=False)
-    df["Country of birth"] = df["Country of birth"].str.replace(
-        "PerÃº", "Peru", regex=False
-    )
-
-    # Optionally, normalize the text to handle any special characters
-    df["Country you have_will immigrate from"] = (
-        df["Country you have_will immigrate from"]
-        .str.normalize("NFKD")
-        .str.encode("ascii", errors="ignore")
-        .str.decode("utf-8")
-    )
-    df["Country of birth"] = (
-        df["Country of birth"]
-        .str.normalize("NFKD")
-        .str.encode("ascii", errors="ignore")
-        .str.decode("utf-8")
-    )
 
     # List of variations to be replaced with 'South Korea'
     Ukraine_variations = [
-        "Ukraine ",
         "Ukrainian",
         "Kyiv",
         "Ukrain",
         "Ikey",
-        "Ukrainian",
-        "Ukrainian ",
         "Ukraine/Canada",
     ]
 
@@ -276,20 +202,9 @@ def clean_signup(df: DataFrame):
         Ukraine_variations, "Ukraine"
     )
 
-    # Update 'Country you have_will immigrate from' column from 'Brasil' to 'Brazil'
-    df["Country you have_will immigrate from"] = df[
-        "Country you have_will immigrate from"
-    ].replace("Viet Nam", "Vietnam")
-
-    # Update 'Country of birth' column from 'Brasil' to 'Brazil'
-    df["Country of birth"] = df["Country of birth"].replace("Viet Nam", "Vietnam")
-
     # List of variations to be replaced with 'South Korea'
     Canada_variations = [
         "British Columbia",
-        "British Colombia canada",
-        "British Colombia canada ",
-        "CanadÃ¡",
     ]
 
     # Update 'Country you have_will immigrate from' column
@@ -300,30 +215,8 @@ def clean_signup(df: DataFrame):
     # Update 'Country of birth' column
     df["Country of birth"] = df["Country of birth"].replace(Canada_variations, "Canada")
 
-    # Correct the replacement of 'PerÃº' to 'Peru' considering special characters
-    df["Country you have_will immigrate from"] = df[
-        "Country you have_will immigrate from"
-    ].str.replace("CanadÃ¡", "Canada", regex=False)
-    df["Country of birth"] = df["Country of birth"].str.replace(
-        "CanadÃ¡", "Canada", regex=False
-    )
-
-    # Optionally, normalize the text to handle any special characters
-    df["Country you have_will immigrate from"] = (
-        df["Country you have_will immigrate from"]
-        .str.normalize("NFKD")
-        .str.encode("ascii", errors="ignore")
-        .str.decode("utf-8")
-    )
-    df["Country of birth"] = (
-        df["Country of birth"]
-        .str.normalize("NFKD")
-        .str.encode("ascii", errors="ignore")
-        .str.decode("utf-8")
-    )
-
     # List of variations to be replaced with 'South Korea'
-    Pakistan_variations = ["PAKISTAN ", "Pakistani", "pakistan ", "Pakistani "]
+    Pakistan_variations = ["PAKISTAN", "Pakistani", "pakistan"]
 
     # Update 'Country you have_will immigrate from' column
     df["Country you have_will immigrate from"] = df[
@@ -369,10 +262,7 @@ def clean_signup(df: DataFrame):
     UAE_variations = [
         "UEA",
         "UAE",
-        "United Arab Emirates",
-        "United Arab Emirates  ",
         "United Arab Emarites",
-        "United Arab Emarites ",
     ]
 
     # Update 'Country you have_will immigrate from' column
@@ -400,60 +290,20 @@ def clean_signup(df: DataFrame):
     df["Country of birth"] = df["Country of birth"].replace(
         afghanistan_variations, "Afghanistan"
     )
-    # Update 'Country you have_will immigrate from' column from 'Brasil' to 'Brazil'
-    df["What is your current annual employment salary"] = df[
-        "What is your current annual employment salary"
-    ].replace("3) $25,000 Â– $50,000", "3) $25,000 – $50,000")
+    return df
+
+
+def clean_signup(df: DataFrame):
     return df
 
 
 def clean_exams(df: DataFrame):
-    df.loc[
-        df["Username"] == "pink_gricel95@hotmail.com",
-        "Country you have_will immigrate from",
-    ] = "Mexico"
-    df.loc[
-        df["Username"] == "zeng.zhix@northeastern.edu",
-        "Country you have_will immigrate from",
-    ] = "China"
-    df.loc[
-        df["Username"] == "wu.hao11@northeastern.edu",
-        "Country you have_will immigrate from",
-    ] = "China"
-    df.loc[df["Username"] == "anxu825@gmail.com", "Country of birth"] = "China"
-    df.loc[df["Username"] == "raulcan333@gmail.com", "Country of birth"] = "Colombia"
-    df.loc[df["Username"] == "niu.me@northeastern.edu", "Country of birth"] = "China"
-    df.loc[df["Username"] == "danitacarrasco@hotmail.com", "Country of birth"] = "Chile"
-    df.loc[df["Username"] == "fessehad27@gmail.com", "Country of birth"] = "Ethiopia"
-    df.loc[
-        df["Username"] == "fessehad27@gmail.com", "Country you have_will immigrate from"
-    ] = "Ethiopia"
     return df
 
 
 def clean_eval(df: DataFrame):
-    df.loc[
-        df["Username"] == "pink_gricel95@hotmail.com",
-        "Country you have_will immigrate from",
-    ] = "Mexico"
-    df.loc[
-        df["Username"] == "zeng.zhix@northeastern.edu",
-        "Country you have_will immigrate from",
-    ] = "China"
-    df.loc[
-        df["Username"] == "wu.hao11@northeastern.edu",
-        "Country you have_will immigrate from",
-    ] = "China"
-    df.loc[df["Username"] == "anxu825@gmail.com", "Country of birth"] = "China"
-
-    df.loc[df["Username"] == "raulcan333@gmail.com", "Country of birth"] = "Colombia"
-
-    df.loc[df["Username"] == "niu.me@northeastern.edu", "Country of birth"] = "China"
-
-    df.loc[df["Username"] == "danitacarrasco@hotmail.com", "Country of birth"] = "Chile"
     return df
 
 
 def clean_survey(df: DataFrame):
-    df.drop(4446, inplace=True)  # Entry mistake
     return df
