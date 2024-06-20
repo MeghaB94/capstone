@@ -1,6 +1,6 @@
 fix_column_translate = {
     "Marital situation": "Marital Status",
-    "Native country": "Country of Birth",
+    "Native country": "Country of birth",
     "Country from where you immigrated to immigrate": "Country you have_will immigrate from",
     "Darrive year in Canada Enter 0 if not applicable": "Year landed in Canada enter 0 if not yet landed",
     "Year of arrival in Canada Enter 0 if not applicable": "Year landed in Canada enter 0 if not yet landed",

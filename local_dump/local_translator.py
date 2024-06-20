@@ -55,10 +55,6 @@ class Translator:
                 TRANSLATION_FILE,
                 encoding="utf-8",
             )
-            # for col in self.df.columns:
-            #     self.df[col] = self.df[col].str.strip()
-            # print(self.df.tail())
-            # self._save_df_to_csv()
         except FileNotFoundError as e:
             self._save_df_to_csv()
 
@@ -81,10 +77,10 @@ def _copy_values_between_cols(df: DataFrame, drop_col: str, keep_col: str):
     if drop_col not in df:
         return False
     if keep_col not in df:
-        df[keep_col] = df[drop_col]
-    df[keep_col] = df[keep_col].fillna(df[drop_col])
-    df[drop_col] = df[drop_col].fillna(df[keep_col])
-    df[keep_col] = df[drop_col]
+        df.loc[:, keep_col] = df[drop_col]
+    df.loc[:, keep_col] = df[keep_col].fillna(df[drop_col])
+    df.loc[:, drop_col] = df[drop_col].fillna(df[keep_col])
+    df.loc[:, keep_col] = df[drop_col]
     return True
 
 
@@ -110,10 +106,12 @@ def translate_columns(df: DataFrame):
 
 def translate_rows(df: DataFrame):
     translator_obj = Translator()
+    print("start translation of each row")
     for index, row in df.iterrows():
         for column in columns_to_be_translated:
             if column in row:
                 df.at[index, column] = translator_obj.fetch_translation(
                     df.at[index, column]
                 )
+    print("all row translation complete")
     return df

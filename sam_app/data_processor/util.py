@@ -24,7 +24,7 @@ def get_df_from_s3(
     s3_object = s3_resource.Object(bucket, object_key)
     file_body = s3_object.get()["Body"]
     string_content = file_body.read().decode(encoding)
-    return read_csv(StringIO(string_content), encoding=encoding)
+    return read_csv(StringIO(string_content), dtype=str, encoding=encoding)
 
 
 def get_csv_file_from_s3(
@@ -39,7 +39,7 @@ def get_csv_file_from_s3(
         df = get_df_from_s3(key, bucket, encoding)
         # remove trailing spaces
         df.rename(columns=lambda x: x.strip(), inplace=True)
-        df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+        df = df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
         return data_type, df
     return None, None
 
