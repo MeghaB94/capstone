@@ -28,6 +28,7 @@ def csv_reciever(event, context):
         execution_id = f"{datetime.now():%Y_%m_%d_%H_%M_%S_%f}"
         object_key = f"{data_type}/{execution_id}/step_1.csv"
         response["df_csv"] = put_df_in_s3(df, object_key)
+        response["data_snippet_json"] = json.loads(df.head().to_json(orient="records"))
         sfn_client.start_execution(
             stateMachineArn=DATA_PROCESSOR_STEP_FN,
             name=f"{data_type}_{execution_id}",
@@ -46,6 +47,7 @@ def remove_test_users(event, context):
     df.reset_index(drop=True, inplace=True)
     result_csv = f"{execution_folder}/step_2.csv"
     event["df_csv"] = put_df_in_s3(df, result_csv)
+    event["data_snippet_json"] = json.loads(df.head().to_json(orient="records"))
     return event
 
 
@@ -55,6 +57,7 @@ def translate_french_data_columns(event, context):
     df = translate_columns(get_df_from_s3(df_csv))
     result_csv = f"{execution_folder}/step_3.csv"
     event["df_csv"] = put_df_in_s3(df, result_csv)
+    event["data_snippet_json"] = json.loads(df.head().to_json(orient="records"))
     return event
 
 
@@ -64,6 +67,7 @@ def translate_french_data_rows(event, context):
     df = translate_rows(get_df_from_s3(df_csv))
     result_csv = f"{execution_folder}/step_4.csv"
     event["df_csv"] = put_df_in_s3(df, result_csv)
+    event["data_snippet_json"] = json.loads(df.head().to_json(orient="records"))
     return event
 
 
@@ -75,6 +79,7 @@ def cleanup_data(event, context):
     df = clean_data(df, data_type)
     result_csv = f"{execution_folder}/step_5.csv"
     event["df_csv"] = put_df_in_s3(df, result_csv)
+    event["data_snippet_json"] = json.loads(df.head().to_json(orient="records"))
     return event
 
 
