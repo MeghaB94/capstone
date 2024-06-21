@@ -95,11 +95,23 @@ def create_sample_csv():
             french_df = df[df["Username"] == "carol_liseth@hotmail.com"]
             french_df["Username"] = "capstonepipelinerunfrench@northeastern.edu"
 
-            english_df = df[df["Username"] == "anitha.shashu@gmail.com"]
+            english_df = df[df["Username"] == "10049na@gmail.com"]
             english_df["Username"] = "capstonepipelinerun@northeastern.edu"
 
+            demo_df = df[df["Username"].str.contains("@ascend", case=False, na=False)]
+            demo_df["Username"] = "capstonepipelinerun@ascend.com"
+
+            facilitator_df = df[
+                df["Program Version"].str.contains("Facilitator", case=False, na=False)
+            ]
+            facilitator_df["Username"] = "capstonepipelinerun@facilitator.com"
+
             csv_file = f"sample_data/{keyword}.csv"
-            sample_df = concat([french_df, english_df], ignore_index=True)
+            sample_df = concat(
+                [french_df, english_df, demo_df, facilitator_df], ignore_index=True
+            )
+            if "EmailAddress" in sample_df:
+                sample_df["EmailAddress"] = sample_df["Username"]
             sample_df.to_csv(
                 csv_file,
                 index=False,
