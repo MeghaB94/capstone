@@ -1,4 +1,5 @@
 .venv
+.power_bi_venv
 .env
 /.vscode
 */__pycache__/*
