@@ -86,3 +86,22 @@ def save_to_sql():
 def dump_translated_to_sql():
     dataframes = read_files_to_separate_dataframes(translated_directory, keywords)
     _clean_and_dump_to_db(dataframes)
+
+
+def create_sample_csv():
+    dataframes = read_files_to_separate_dataframes(directory, keywords)
+    for keyword, df in dataframes.items():
+        if type(df) == DataFrame:
+            french_df = df[df["Username"] == "carol_liseth@hotmail.com"]
+            french_df["Username"] = "capstonepipelinerunfrench@northeastern.edu"
+
+            english_df = df[df["Username"] == "anitha.shashu@gmail.com"]
+            english_df["Username"] = "capstonepipelinerun@northeastern.edu"
+
+            csv_file = f"sample_data/{keyword}.csv"
+            sample_df = concat([french_df, english_df], ignore_index=True)
+            sample_df.to_csv(
+                csv_file,
+                index=False,
+                encoding=(ANSI_ENCODING if keyword == "signup" else "utf-8"),
+            )
