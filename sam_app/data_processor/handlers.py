@@ -25,10 +25,12 @@ def csv_reciever(event, context):
             bucket=item["s3"]["bucket"]["name"],
             key=item["s3"]["object"]["key"],
         )
-        object_key = f"{data_type}/{datetime.now():%Y_%m_%d_%H_%M_%S_%f}/step_1.csv"
+        execution_id = f"{datetime.now():%Y_%m_%d_%H_%M_%S_%f}"
+        object_key = f"{data_type}/{execution_id}/step_1.csv"
         response["df_csv"] = put_df_in_s3(df, object_key)
         sfn_client.start_execution(
             stateMachineArn=DATA_PROCESSOR_STEP_FN,
+            name=f"{data_type}_{execution_id}",
             input=json.dumps(response),
         )
     return response
