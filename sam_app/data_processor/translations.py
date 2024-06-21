@@ -92,10 +92,10 @@ def _copy_values_between_cols(df: DataFrame, drop_col: str, keep_col: str):
     if drop_col not in df:
         return False
     if keep_col not in df:
-        df[keep_col] = df[drop_col]
-    df[keep_col] = df[keep_col].fillna(df[drop_col])
-    df[drop_col] = df[drop_col].fillna(df[keep_col])
-    df[keep_col] = df[drop_col]
+        df.loc[:, keep_col] = df[drop_col]
+    df.loc[:, keep_col] = df[keep_col].fillna(df[drop_col])
+    df.loc[:, drop_col] = df[drop_col].fillna(df[keep_col])
+    df.loc[:, keep_col] = df[drop_col]
     return True
 
 

@@ -44,6 +44,9 @@ def remove_test_users(event, context):
     df = df[
         ~df["Username"].str.contains("test|proton|demo|@ascend", case=False, na=False)
     ]
+    df = df[~df["Program Version"].str.contains("Facilitator", case=False, na=False)]
+    if "DepartmentName" in df:
+        df = df[~df["DepartmentName"].str.contains("Facilitator", case=False, na=False)]
     df.reset_index(drop=True, inplace=True)
     result_csv = f"{execution_folder}/step_2.csv"
     event["df_csv"] = put_df_in_s3(df, result_csv)
