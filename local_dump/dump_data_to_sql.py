@@ -100,11 +100,13 @@ def create_sample_csv():
 
             demo_df = df[df["Username"].str.contains("@ascend", case=False, na=False)]
             demo_df["Username"] = "capstonepipelinerun@ascend.com"
+            demo_df = demo_df.head(1 if keyword == "signup" else 5)
 
             facilitator_df = df[
                 df["Program Version"].str.contains("Facilitator", case=False, na=False)
             ]
             facilitator_df["Username"] = "capstonepipelinerun@facilitator.com"
+            facilitator_df = facilitator_df.head(1 if keyword == "signup" else 5)
 
             csv_file = f"sample_data/{keyword}.csv"
             sample_df = concat(
