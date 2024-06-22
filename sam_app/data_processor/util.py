@@ -24,7 +24,12 @@ def get_df_from_s3(
     s3_object = s3_resource.Object(bucket, object_key)
     file_body = s3_object.get()["Body"]
     string_content = file_body.read().decode(encoding)
-    return read_csv(StringIO(string_content), dtype=str, encoding=encoding)
+    return read_csv(
+        StringIO(string_content),
+        dtype=str,
+        encoding=encoding,
+        keep_default_na=False,
+    )
 
 
 def get_csv_file_from_s3(
