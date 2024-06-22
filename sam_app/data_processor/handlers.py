@@ -2,7 +2,7 @@ import json
 import boto3
 from datetime import datetime
 from config import DATA_PROCESSOR_STEP_FN
-from data_cleaner import clean_data
+from data_cleaner import clean_data, fill_nas
 from db import save_df_to_sql
 from translations import translate_columns, translate_rows
 from util import (
@@ -89,6 +89,7 @@ def cleanup_data(event, context):
 def put_data_in_db(event, context):
     df_csv: str = event.get("df_csv")
     df = get_df_from_s3(df_csv)
+    df = fill_nas(df)
     table_name = get_data_type_from_file_path(df_csv)
     save_df_to_sql(table_name, df)
     return event

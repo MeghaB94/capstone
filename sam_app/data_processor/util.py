@@ -28,7 +28,6 @@ def get_df_from_s3(
         StringIO(string_content),
         dtype=str,
         encoding=encoding,
-        keep_default_na=False,
     )
 
 
